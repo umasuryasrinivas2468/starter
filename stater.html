@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Activate License</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; background: #f8f9fa; }
+    .container { max-width: 450px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    #licenseKey { font-weight: bold; color: green; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Activate Your License</h2>
+    <form id="licenseForm">
+      <label>Email:</label>
+      <input type="email" id="email" required>
+      <button type="submit">Generate License</button>
+    </form>
+    <p>Your License Key:</p>
+    <p id="licenseKey">---</p>
+    <button id="copyBtn" style="display:none;">Copy Key</button>
+  </div>
+
+  <script>
+    // ✅ Use your n8n webhook URL here
+    const n8nWebhookURL = "http://localhost:5678/webhook/4bd89b59-0bcf-4776-9e3e-3bb01e4a6c09";
+
+    // ✅ Fixed 12-character license key 12characters
+    function generateLicenseKey() {
+      const randNum = (len) => Array.from({length: len}, () => Math.floor(Math.random() * 10)).join("");
+      const randAlpha = () => String.fromCharCode(65 + Math.floor(Math.random() * 26));
+      // Format → ACZ + 2 digits + 2 letters + 3 digits + 2 digits
+      // Total = 3 + 2 + 2 + 3 + 2 = 12
+      return `ACZ${randNum(2)}${randAlpha()}${randAlpha()}${randNum(3)}${randNum(2)}`;
+    }
+
+    document.getElementById("licenseForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const license = generateLicenseKey();
+      const today = new Date().toISOString().split("T")[0];
+      const due = new Date();
+      due.setMonth(due.getMonth() + 1);
+      const dueDate = due.toISOString().split("T")[0];
+
+      // Display license locally
+      document.getElementById("licenseKey").textContent = license;
+      document.getElementById("copyBtn").style.display = "block";
+
+      // Send data to n8n → Google Sheets
+      fetch(n8nWebhookURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, license, today, due: dueDate })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("n8n response:", data);
+        alert("✅ Saved to Google Sheets via n8n!");
+      })
+      .catch(err => {
+        console.error("Error:", err);
+        alert("❌ Error sending data to n8n");
+      });
+    });
+
+    // Copy license to clipboard
+    document.getElementById("copyBtn").addEventListener("click", function() {
+      const key = document.getElementById("licenseKey").textContent;
+      navigator.clipboard.writeText(key)
+        .then(() => alert("📋 License Key Copied!"))
+        .catch(err => alert("Copy failed: " + err));
+    });
+  </script>
+</body>
+</html>
